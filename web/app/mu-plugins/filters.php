@@ -48,18 +48,8 @@ add_filter( 'pantheon.enable_subdirectory_networks_message', '__return_false' );
  * @return string The fixed URL.
  */
 function fix_core_resource_urls( string $url ) : string {
-	global $current_blog;
-	$main_site_url = trailingslashit( is_multisite() ? network_site_url( '/' ) : home_url() );
-
-	// Get the current site path. Covers a variety of scenarios since we're using this function on a bunch of different filters.
-	$current_site_path = trailingslashit( parse_url( get_home_url(), PHP_URL_PATH ) ); // Define a default path.
-	if ( is_multisite() ) {
-		if ( isset( $current_blog ) && ! empty( $current_blog->path ) ) {
-			$current_site_path = trailingslashit( $current_blog->path );
-		} elseif ( function_exists( 'get_blog_details' ) ) {
-			$current_site_path = trailingslashit( get_blog_details()->path );
-		}
-	}
+	$main_site_url = trailingslashit( network_site_url( '/' ) );
+	$current_site_path = trailingslashit( get_blog_details()->path );
 
 	// Parse the URL to get its components.
 	$parsed_url = parse_url( $url );
@@ -70,7 +60,7 @@ function fix_core_resource_urls( string $url ) : string {
 	}
 
 	$path = $parsed_url['path'];
-	$core_paths = [ '/wp-includes/', '/wp-content/' ];
+	$core_paths = [ 'wp-includes/', 'wp-admin/', 'wp-content/' ];
 	$path_modified = false;
 
 	foreach ( $core_paths as $core_path ) {
@@ -97,13 +87,8 @@ function fix_core_resource_urls( string $url ) : string {
 	return __normalize_wp_url( $new_url );
 }
 
-/**
- * Filters to run fix_core_resource_urls on to fix the core resource URLs.
- *
- * @since 1.2.1
- * @see fix_core_resource_urls
- */
-function filter_core_resource_urls() {
+// Only run the filter on non-main sites in a subdirectory multisite network.
+if ( is_multisite() && ! is_subdomain_install() && ! is_main_site() ) {
 	$filters = [
 		'script_loader_src',
 		'style_loader_src',
@@ -112,35 +97,12 @@ function filter_core_resource_urls() {
 		'stylesheet_directory_uri',
 		'template_directory_uri',
 		'site_url',
-		'content_url',
+		'content_url'
 	];
 	foreach ( $filters as $filter ) {
 		add_filter( $filter, __NAMESPACE__ . '\\fix_core_resource_urls', 9 );
 	}
 }
-add_action( 'init', __NAMESPACE__ . '\\filter_core_resource_urls' );
-
-/**
- * Prepopulate GraphQL endpoint URL with default value if unset.
- * This will ensure that the URL is not changed from /wp/graphql to /graphql by our other filtering unless that's what the user wants.
- *
- * @since 1.1.0
- */
-function prepopulate_graphql_endpoint_url() {
-	$options = get_option( 'graphql_general_settings' );
-
-	// Bail early if options have already been set.
-	if ( $options ) {
-		return;
-	}
-
-	$options = [];
-	$site_path = site_url();
-	$endpoint = ( ! empty( $site_path ) || strpos( $site_path, 'wp' ) !== false ) ? 'graphql' : 'wp/graphql';
-	$options['graphql_endpoint'] = $endpoint;
-	update_option( 'graphql_general_settings', $options );
-}
-add_action( 'graphql_init', __NAMESPACE__ . '\\prepopulate_graphql_endpoint_url' );
 
 /**
  * Drop the /wp, if it exists, from URLs on the main site (single site or multisite).
@@ -152,15 +114,6 @@ add_action( 'graphql_init', __NAMESPACE__ . '\\prepopulate_graphql_endpoint_url'
  * @return string The filtered URL.
  */
 function adjust_main_site_urls( string $url ) : string {
-	if ( doing_action( 'graphql_init' ) || __is_login_url( $url ) ) {
-		return $url;
-	}
-
-	// Explicit handling for /wp/graphql
-	if ( strpos( $url, '/graphql' ) !== false ) {
-		return $url;
-	}
-
 	// If this is the main site, drop the /wp.
 	if ( is_main_site() && is_multisite() ) {
 		$url = str_replace( '/wp/', '/', $url );
@@ -170,6 +123,26 @@ function adjust_main_site_urls( string $url ) : string {
 }
 add_filter( 'home_url', __NAMESPACE__ . '\\adjust_main_site_urls', 9 );
 add_filter( 'site_url', __NAMESPACE__ . '\\adjust_main_site_urls', 9 );
+
+/**
+ * Add /wp prefix to all admin and login URLs.
+ * Since /wp is where the core files are installed, this normalizes all non-front-facing urls to use the correct url structure.
+ *
+ * @since 1.1.0
+ * @param string $url The URL to check.
+ * @return string The corrected admin or login URL (or the base url if not an admin or login url).
+ */
+function add_wp_prefix_to_login_and_admin_urls( string $url ) : string {
+	if (  ! __is_login_url( $url ) ) {
+		return $url;
+	}
+	if ( strpos( $url, '/wp/' ) !== false ) {
+		return $url;
+	}
+	return __normalize_wp_url( preg_replace( '/(\/wp-(login|admin))/', '/wp/$1', $url ) );
+}
+add_filter( 'login_url', __NAMESPACE__ . '\\add_wp_prefix_to_login_and_admin_urls', 9 );
+add_filter( 'admin_url', __NAMESPACE__ . '\\add_wp_prefix_to_login_and_admin_urls', 9 );
 
 /**
  * Check the URL to see if it's either an admin or wp-login URL.
@@ -192,11 +165,11 @@ function __is_login_url( string $url ) : bool {
 	}
 
 	// Check if the URL is a login or admin page
-	if ( strpos( $url, 'wp-login' ) !== false || strpos($url, 'wp-admin' ) !== false) {
+	if (strpos($url, 'wp-login') !== false || strpos($url, 'wp-admin') !== false) {
 		return true;
 	}
 
-	return false;
+	return false
 }
 
 /**
@@ -207,31 +180,15 @@ function __is_login_url( string $url ) : bool {
  * @return string The normalized URL.
  */
 function __normalize_wp_url( string $url ): string {
-	// Parse the URL into components.
-	$parts = parse_url( $url );
+    $scheme = parse_url( $url, PHP_URL_SCHEME );
+    $scheme_with_separator = $scheme ? $scheme . '://' : '';
 
-	// Normalize the URL to remove any double slashes.
-	if ( isset( $parts['path'] ) ) {
-		$parts['path'] = preg_replace( '#/+#', '/', $parts['path'] );
-	}
+    // Remove the scheme from the URL if it exists.
+    $remaining_url = $scheme ? substr( $url, strlen($scheme_with_separator ) ) : $url;
 
-	// Rebuild and return the full normalized URL.
-	return __rebuild_url_from_parts( $parts );
-}
+    // Normalize the remaining URL to remove any double slashes.
+    $normalized_url = str_replace( '//', '/', $remaining_url );
 
-/**
- * Rebuild parsed URL from parts.
- *
- * @since 1.1.0
- * @param array $parts URL parts from parse_url.
- * @return string Re-parsed URL.
- */
-function __rebuild_url_from_parts( array $parts ) : string {
-	return trailingslashit(
-		( isset( $parts['scheme'] ) ? "{$parts['scheme']}:" : '' ) .
-		( isset( $parts['host'] ) ? "{$parts['host']}" : '' ) .
-		( isset( $parts['path'] ) ? untrailingslashit( "{$parts['path']}" ) : '' ) .
-		( isset( $parts['query'] ) ? str_replace( '/', '', "?{$parts['query']}" ) : '' ) .
-		( isset( $parts['fragment'] ) ? str_replace( '/', '', "#{$parts['fragment']}" ) : '' )
-	);
+    // Reconstruct and return the full normalized URL.
+    return $scheme_with_separator . $normalized_url;
 }

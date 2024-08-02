@@ -40,7 +40,7 @@ if (
 	// Check if a .env file exists.
 	file_exists( $root_dir . '/.env' ) ||
 	// Also check if we're using Lando and a .env.local file exists.
-	( file_exists( $root_dir . '/.env.local' ) && isset( $_ENV['LANDO'] ) && 'ON' === $_ENV['LANDO'] )
+	( file_exists( $root_dir . '/.env.local' ) && 'lando' === $_ENV['PANTHEON_ENVIRONMENT'] )
 ) {
 	$dotenv->load();
 	if ( ! env( 'DATABASE_URL' ) ) {
@@ -82,7 +82,7 @@ if ( env( 'DATABASE_URL' ) ) {
 /**
  * Pantheon modifications
  */
-if ( isset( $_ENV['PANTHEON_ENVIRONMENT'] ) && ! isset( $_ENV['LANDO'] ) ) {
+if ( isset( $_ENV['PANTHEON_ENVIRONMENT'] ) && 'lando' !== $_ENV['PANTHEON_ENVIRONMENT'] ) {
 	Config::define( 'DB_HOST', $_ENV['DB_HOST'] . ':' . $_ENV['DB_PORT'] );
 } else {
 	/**

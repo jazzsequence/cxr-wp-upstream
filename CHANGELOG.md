@@ -1,18 +1,3 @@
-### v1.32.3 (2024-09-10)
-* Updates `COOKIEPATH` and `SITECOOKIEPATH` values to `/` in `application.pantheon.php` to resolve cookie-related nonce authentication failures. Previously, the values were set to `''` (empty string), which does not allow the cookies to allow authentication within all the paths in a domain. ([#164](https://github.com/pantheon-systems/wordpress-composer-managed/pull/164))
-
-### v1.32.2 (2024-09-03)
-* Fixes a bug in the previous update where some WordPress core resources were not available on some single and subdirectory multisite installs. ([161](https://github.com/pantheon-systems/wordpress-composer-managed/pull/161))
-
-### v1.32.1 (2024-08-16)
-* Refactors core resource URL filtering and multisite handling. ([#157](https://github.com/pantheon-systems/wordpress-composer-managed/pull/157)) This resolves an issue where some WordPress core resources were 404ing on single site installs.
-
-### v1.32.0 (2024-08-06)
-* This update primarily fixes consistency issues between the development repository ([`pantheon-systems/wordpress-composer-managed`](https://github.com/pantheon-systems/wordpress-composer-managed)) and the upstream repository ([`pantheon-upstreams/wordpress-composer-managed`](https://github.com/pantheon-upstreams/wordpress-composer-managed)). Most notably, this update removes decoupled packages that were erroneously being added to the non-decoupled upstream (and are not included in this repository).
-* Fixes issues with subdomain multisite testing ([#148](https://github.com/pantheon-systems/wordpress-composer-managed/pull/148))
-* Updates automation steps to check PRs for "mixed" commits ([#146](https://github.com/pantheon-systems/wordpress-composer-managed/pull/146)) and adds handling for merge commits and conflicts ([#152](https://github.com/pantheon-systems/wordpress-composer-managed/pull/152))
-* Moves cookie settings inside the pantheon environment check ([#151](https://github.com/pantheon-systems/wordpress-composer-managed/pull/151))
-
 ### v1.31.1 (2024-07-29)
 * Removes code that for handling wp-admin URLs. ([#143](https://github.com/pantheon-systems/wordpress-composer-managed/pull/143)) This code was not working as intended and testing revealed it to be unnecessary.
 * Adds a filter to disable the subdirectory multisite custom wp-content directory warning. ([#144](https://github.com/pantheon-systems/wordpress-composer-managed/pull/144)) This implements the filter added in the [Pantheon MU Plugin](https://github.com/pantheon-systems/pantheon-mu-plugin) in [#51](https://github.com/pantheon-systems/pantheon-mu-plugin/pull/51).
