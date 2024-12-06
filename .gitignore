@@ -18,6 +18,7 @@ web/app/cache/*
 # files other than those that come with the WordPress package.
 web/wp
 web/.htaccess
+auth.json
 
 # Our Composer post-install command creates a symbolic link to web/wp inside
 # web. We don't want to version control these linked files, so we ignore them
