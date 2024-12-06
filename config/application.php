@@ -49,9 +49,19 @@ if (
 }
 
 /**
- * Include Pantheon application settings.
+ * Pantheon modifications
  */
-require_once __DIR__ . '/application.pantheon.php';
+if (isset($_ENV['PANTHEON_ENVIRONMENT']) && 'lando' !== $_ENV['PANTHEON_ENVIRONMENT']) {
+    Config::define('DB_HOST', $_ENV['DB_HOST'] . ':' . $_ENV['DB_PORT']);
+} else {
+    /**
+     * URLs
+     */
+    Config::define('WP_HOME', env('WP_HOME'));
+    Config::define('WP_SITEURL', env('WP_SITEURL'));
+    Config::define('DB_HOST', env('DB_HOST') ?: 'localhost');
+    Config::define('DISABLE_WP_CRON', env('DISABLE_WP_CRON') ?: false);
+}
 
 /**
  * Set up our global environment constant and load its config first
